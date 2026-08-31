@@ -1,0 +1,9 @@
+{
+  "appId": 0,
+  "appAddress": "",
+  "network": "testnet",
+  "keeperAppId": 769891898,
+  "upkeepId": 0,
+  "interval": 1286,
+  "notes": "not deployed — pull payment stream; tick() via arcron keeper matures one drip per tick, beneficiary pulls with claim()"
+}
