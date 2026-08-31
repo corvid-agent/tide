@@ -1,0 +1,403 @@
+{
+    "name": "Tide",
+    "structs": {},
+    "methods": [
+        {
+            "name": "create",
+            "args": [],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [
+                    "NoOp"
+                ],
+                "call": []
+            },
+            "readonly": false,
+            "desc": "No-op create. Zero arguments on purpose.\nThe 68-year trap: never take a uint64 create arg that a deploy script might map to the keeper app id. Nothing to pass here.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "set_keeper",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "keeper"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Name the Arcron keeper whose app account may call `tick`.\nCreator-only, one-time. Pass the keeper *application*, not a raw uint64. `tick` authorizes Application(keeper).address - the inner-call sender when Arcron `execute()` inner-calls this app - never itob(keeper.id). Puya lowers the Application param to uint64 in the ABI signature; the compiled selector is set_keeper(uint64)void.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "set_beneficiary",
+            "args": [
+                {
+                    "type": "address",
+                    "name": "beneficiary"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Name the account allowed to pull the allowance via `claim`.\nOwner-only, one-time. There is deliberately no re-point method: the stream pays whoever the owner named at the start, and a one-time name keeps that promise simple. Puya lowers the Account param to address in the ABI signature; the compiled selector is set_beneficiary(address)void.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "set_drip",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "drip"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Set (or re-set) the uALGO matured per keeper tick.\nOwner-only, re-settable: the owner may raise or lower the stream at will, floored at MIN_DRIP (1000 uALGO) so a claim's pooled fee never rivals the payout. Applies from the next `tick`; drips already matured keep paying out at whatever rate they matured.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "fund",
+            "args": [
+                {
+                    "type": "pay",
+                    "name": "payment"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Top up the pool. Anyone may fund; the money only ever flows\nout to the named beneficiary.\nThe payment must land on the app address and carry more than zero uALGO. Matured drips are only matured while the pool can cover them (see `tick`), so funding after the fact does not back-pay missed ticks - it just lets future ticks mature.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "tick",
+            "args": [],
+            "returns": {
+                "type": "uint64"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Arcron hook. Zero arguments; the selector is the only app arg.\nReturns the new `matured` count when a drip matures, 0 on every no-work path. FAIL SOFT: after the two authorization asserts nothing here may reject - a failing hook gets exponentially backed off by keeper bots and burns upkeep escrow on retries.\nNo-work paths, all returning 0:   * beneficiary unset - a stream with nobody to pull it does not     mature;   * pool underfunded - the app balance minus the APP_MIN_BALANCE     floor (100000 uALGO) cannot cover drip * (matured + 1), so     one more drip would promise money the pool cannot pay.\nBest-effort, not catch-up: a missed or skipped tick is a missed drip. Register with SKIP_AHEAD; see README.md.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "claim",
+            "args": [],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Pull the matured allowance. Beneficiary-only.\nPays matured * drip uALGO out of the app balance with an inner payment, adds it to `claimed_total`, and zeroes `matured`. If nothing has matured, returns quietly (fail-soft; a no-op claim is harmless).\nFEE POOLING: the inner payment carries a 1000 uALGO fee, so the outer call must set a flat fee >= 2000 uALGO (1000 outer + 1000 inner). A claim sent with the default 1000 uALGO fee fails on fee underspend. This is the pull-payment trade the README calls out: one pooled fee, paid by the beneficiary, only when they actually pull.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "claimable",
+            "args": [],
+            "returns": {
+                "type": "uint64"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": true,
+            "desc": "uALGO the beneficiary could pull right now: matured * drip.",
+            "events": [],
+            "recommendations": {}
+        }
+    ],
+    "arcs": [
+        22,
+        28
+    ],
+    "desc": "Recurring micro-allowance, matured by Arcron keepers, pulled by\n    the beneficiary.\n\n    TestNet only. Unaudited. Not a product.\n    ",
+    "networks": {},
+    "state": {
+        "schema": {
+            "global": {
+                "ints": 4,
+                "bytes": 2
+            },
+            "local": {
+                "ints": 0,
+                "bytes": 0
+            }
+        },
+        "keys": {
+            "global": {
+                "keeper_app": {
+                    "keyType": "AVMString",
+                    "valueType": "AVMUint64",
+                    "key": "a2VlcGVyX2FwcA=="
+                },
+                "drip": {
+                    "keyType": "AVMString",
+                    "valueType": "AVMUint64",
+                    "key": "ZHJpcA=="
+                },
+                "matured": {
+                    "keyType": "AVMString",
+                    "valueType": "AVMUint64",
+                    "key": "bWF0dXJlZA=="
+                },
+                "claimed_total": {
+                    "keyType": "AVMString",
+                    "valueType": "AVMUint64",
+                    "key": "Y2xhaW1lZF90b3RhbA=="
+                },
+                "owner": {
+                    "keyType": "AVMString",
+                    "valueType": "address",
+                    "key": "b3duZXI="
+                },
+                "beneficiary": {
+                    "keyType": "AVMString",
+                    "valueType": "address",
+                    "key": "YmVuZWZpY2lhcnk="
+                }
+            },
+            "local": {},
+            "box": {}
+        },
+        "maps": {
+            "global": {},
+            "local": {},
+            "box": {}
+        }
+    },
+    "bareActions": {
+        "create": [],
+        "call": []
+    },
+    "sourceInfo": {
+        "approval": {
+            "sourceInfo": [
+                {
+                    "pc": [
+                        255
+                    ],
+                    "errorMessage": "Beneficiary already set"
+                },
+                {
+                    "pc": [
+                        282
+                    ],
+                    "errorMessage": "Drip below floor"
+                },
+                {
+                    "pc": [
+                        222
+                    ],
+                    "errorMessage": "Keeper already set"
+                },
+                {
+                    "pc": [
+                        224
+                    ],
+                    "errorMessage": "Keeper app required"
+                },
+                {
+                    "pc": [
+                        315
+                    ],
+                    "errorMessage": "Keeper not set"
+                },
+                {
+                    "pc": [
+                        392
+                    ],
+                    "errorMessage": "Only the beneficiary can claim"
+                },
+                {
+                    "pc": [
+                        216
+                    ],
+                    "errorMessage": "Only the creator can set the keeper"
+                },
+                {
+                    "pc": [
+                        323
+                    ],
+                    "errorMessage": "Only the keeper app may tick"
+                },
+                {
+                    "pc": [
+                        247
+                    ],
+                    "errorMessage": "Only the owner can set the beneficiary"
+                },
+                {
+                    "pc": [
+                        278
+                    ],
+                    "errorMessage": "Only the owner can set the drip"
+                },
+                {
+                    "pc": [
+                        307
+                    ],
+                    "errorMessage": "Payment must be nonzero"
+                },
+                {
+                    "pc": [
+                        304
+                    ],
+                    "errorMessage": "Payment must go to the app"
+                },
+                {
+                    "pc": [
+                        358
+                    ],
+                    "errorMessage": "account funded"
+                },
+                {
+                    "pc": [
+                        321
+                    ],
+                    "errorMessage": "application exists"
+                },
+                {
+                    "pc": [
+                        251,
+                        327,
+                        390,
+                        415
+                    ],
+                    "errorMessage": "check self.beneficiary exists"
+                },
+                {
+                    "pc": [
+                        433
+                    ],
+                    "errorMessage": "check self.claimed_total exists"
+                },
+                {
+                    "pc": [
+                        346,
+                        407,
+                        451
+                    ],
+                    "errorMessage": "check self.drip exists"
+                },
+                {
+                    "pc": [
+                        220,
+                        313
+                    ],
+                    "errorMessage": "check self.keeper_app exists"
+                },
+                {
+                    "pc": [
+                        350,
+                        375,
+                        400,
+                        447
+                    ],
+                    "errorMessage": "check self.matured exists"
+                },
+                {
+                    "pc": [
+                        245,
+                        276
+                    ],
+                    "errorMessage": "check self.owner exists"
+                },
+                {
+                    "pc": [
+                        238
+                    ],
+                    "errorMessage": "invalid number of bytes for arc4.static_array<arc4.uint8, 32>"
+                },
+                {
+                    "pc": [
+                        209,
+                        268
+                    ],
+                    "errorMessage": "invalid number of bytes for arc4.uint64"
+                },
+                {
+                    "pc": [
+                        297
+                    ],
+                    "errorMessage": "transaction type is pay"
+                }
+            ],
+            "pcOffsetMethod": "none"
+        },
+        "clear": {
+            "sourceInfo": [],
+            "pcOffsetMethod": "none"
+        }
+    },
+    "source": {
+        "approval": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuYXBwcm92YWxfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIGludGNibG9jayAwIDEgOCAxMDAwCiAgICBieXRlY2Jsb2NrICJtYXR1cmVkIiAiYmVuZWZpY2lhcnkiICJkcmlwIiAia2VlcGVyX2FwcCIgImNsYWltZWRfdG90YWwiICJvd25lciIgMHgxNTFmN2M3NQogICAgdHhuIEFwcGxpY2F0aW9uSUQKICAgIGJueiBtYWluX2FmdGVyX2lmX2Vsc2VAMgogICAgLy8gY29udHJhY3QucHk6ODEtODMKICAgIC8vICMgQXBwIGlkIG9mIHRoZSBBcmNyb24ga2VlcGVyIGFsbG93ZWQgdG8gY2FsbCBgdGlja2AuIFplcm8gdW50aWwKICAgIC8vICMgYHNldF9rZWVwZXJgLiBOb3QgYW4gaW50ZXJ2YWwuIE5vdCBhIGNyZWF0ZSBhcmcuCiAgICAvLyBzZWxmLmtlZXBlcl9hcHAgPSBHbG9iYWxTdGF0ZShVSW50NjQoMCkpCiAgICBieXRlY18zIC8vICJrZWVwZXJfYXBwIgogICAgaW50Y18wIC8vIDAKICAgIGFwcF9nbG9iYWxfcHV0CiAgICAvLyBjb250cmFjdC5weTo4NC04NgogICAgLy8gIyB1QUxHTyBtYXR1cmVkIGludG8gdGhlIGNsYWltYWJsZSBwb29sIHBlciBrZWVwZXIgdGljay4gT3duZXItc2V0LAogICAgLy8gIyByZS1zZXR0YWJsZSwgZmxvb3JlZCBhdCBNSU5fRFJJUC4KICAgIC8vIHNlbGYuZHJpcCA9IEdsb2JhbFN0YXRlKFVJbnQ2NCgwKSkKICAgIGJ5dGVjXzIgLy8gImRyaXAiCiAgICBpbnRjXzAgLy8gMAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5Ojg3LTg4CiAgICAvLyAjIFVuY2xhaW1lZCBkcmlwcyBtYXR1cmVkIGJ5IGB0aWNrYCBzaW5jZSB0aGUgbGFzdCBgY2xhaW1gLgogICAgLy8gc2VsZi5tYXR1cmVkID0gR2xvYmFsU3RhdGUoVUludDY0KDApKQogICAgYnl0ZWNfMCAvLyAibWF0dXJlZCIKICAgIGludGNfMCAvLyAwCiAgICBhcHBfZ2xvYmFsX3B1dAogICAgLy8gY29udHJhY3QucHk6ODktOTAKICAgIC8vICMgTGlmZXRpbWUgdUFMR08gcGFpZCBvdXQgdG8gdGhlIGJlbmVmaWNpYXJ5IHZpYSBgY2xhaW1gLgogICAgLy8gc2VsZi5jbGFpbWVkX3RvdGFsID0gR2xvYmFsU3RhdGUoVUludDY0KDApKQogICAgYnl0ZWMgNCAvLyAiY2xhaW1lZF90b3RhbCIKICAgIGludGNfMCAvLyAwCiAgICBhcHBfZ2xvYmFsX3B1dAogICAgLy8gY29udHJhY3QucHk6OTEtOTMKICAgIC8vICMgVGhlIGFjY291bnQgdGhhdCBtYXkgc2V0IHRoZSBkcmlwIGFuZCB0aGUgYmVuZWZpY2lhcnkuIFRoZQogICAgLy8gIyBjcmVhdG9yIGF0IGNyZWF0ZSB0aW1lOyB0aGVyZSBpcyBkZWxpYmVyYXRlbHkgbm8gdHJhbnNmZXIgbWV0aG9kLgogICAgLy8gc2VsZi5vd25lciA9IEdsb2JhbFN0YXRlKEFjY291bnQoKSkKICAgIGJ5dGVjIDUgLy8gIm93bmVyIgogICAgZ2xvYmFsIFplcm9BZGRyZXNzCiAgICBhcHBfZ2xvYmFsX3B1dAogICAgLy8gY29udHJhY3QucHk6OTQtOTcKICAgIC8vICMgVGhlIGFjY291bnQgdGhhdCBtYXkgYGNsYWltYC4gWmVybyBhZGRyZXNzIHVudGlsIGBzZXRfYmVuZWZpY2lhcnlgCiAgICAvLyAjIChvbmUtdGltZSk7IGB0aWNrYCBmYWlsLXNvZnRzIHdoaWxlIHVuc2V0IHNvIG5vIGRyaXAgbWF0dXJlcyBpbnRvCiAgICAvLyAjIGEgc3RyZWFtIHdpdGggbm9ib2R5IHRvIHB1bGwgaXQuCiAgICAvLyBzZWxmLmJlbmVmaWNpYXJ5ID0gR2xvYmFsU3RhdGUoQWNjb3VudCgpKQogICAgYnl0ZWNfMSAvLyAiYmVuZWZpY2lhcnkiCiAgICBnbG9iYWwgWmVyb0FkZHJlc3MKICAgIGFwcF9nbG9iYWxfcHV0CgptYWluX2FmdGVyX2lmX2Vsc2VAMjoKICAgIC8vIGNvbnRyYWN0LnB5OjczCiAgICAvLyBjbGFzcyBUaWRlKEFSQzRDb250cmFjdCk6CiAgICB0eG4gT25Db21wbGV0aW9uCiAgICAhCiAgICBhc3NlcnQKICAgIHR4biBBcHBsaWNhdGlvbklECiAgICBieiBtYWluX2NyZWF0ZV9Ob09wQDEzCiAgICBwdXNoYnl0ZXNzIDB4YzRjMWQ4ZjcgMHg0MjE1OGYxYiAweDUyY2ZhYzYwIDB4NTE1MzFiNzUgMHg0ZDRkNWYwYiAweGYxNTc3NzI2IDB4MDNjZmI1OTEgLy8gbWV0aG9kICJzZXRfa2VlcGVyKHVpbnQ2NCl2b2lkIiwgbWV0aG9kICJzZXRfYmVuZWZpY2lhcnkoYWRkcmVzcyl2b2lkIiwgbWV0aG9kICJzZXRfZHJpcCh1aW50NjQpdm9pZCIsIG1ldGhvZCAiZnVuZChwYXkpdm9pZCIsIG1ldGhvZCAidGljaygpdWludDY0IiwgbWV0aG9kICJjbGFpbSgpdm9pZCIsIG1ldGhvZCAiY2xhaW1hYmxlKCl1aW50NjQiCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAwCiAgICBtYXRjaCBzZXRfa2VlcGVyIHNldF9iZW5lZmljaWFyeSBzZXRfZHJpcCBmdW5kIHRpY2sgY2xhaW0gY2xhaW1hYmxlCiAgICBlcnIKCm1haW5fY3JlYXRlX05vT3BAMTM6CiAgICAvLyBjb250cmFjdC5weTo3MwogICAgLy8gY2xhc3MgVGlkZShBUkM0Q29udHJhY3QpOgogICAgcHVzaGJ5dGVzIDB4NGM1YzYxYmEgLy8gbWV0aG9kICJjcmVhdGUoKXZvaWQiCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAwCiAgICBtYXRjaCBjcmVhdGUKICAgIGVycgoKCi8vIGNvbnRyYWN0LlRpZGUuY3JlYXRlW3JvdXRpbmddKCkgLT4gdm9pZDoKY3JlYXRlOgogICAgLy8gY29udHJhY3QucHk6MTA2CiAgICAvLyBzZWxmLmtlZXBlcl9hcHAudmFsdWUgPSBVSW50NjQoMCkKICAgIGJ5dGVjXzMgLy8gImtlZXBlcl9hcHAiCiAgICBpbnRjXzAgLy8gMAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjEwNwogICAgLy8gc2VsZi5kcmlwLnZhbHVlID0gVUludDY0KDApCiAgICBieXRlY18yIC8vICJkcmlwIgogICAgaW50Y18wIC8vIDAKICAgIGFwcF9nbG9iYWxfcHV0CiAgICAvLyBjb250cmFjdC5weToxMDgKICAgIC8vIHNlbGYubWF0dXJlZC52YWx1ZSA9IFVJbnQ2NCgwKQogICAgYnl0ZWNfMCAvLyAibWF0dXJlZCIKICAgIGludGNfMCAvLyAwCiAgICBhcHBfZ2xvYmFsX3B1dAogICAgLy8gY29udHJhY3QucHk6MTA5CiAgICAvLyBzZWxmLmNsYWltZWRfdG90YWwudmFsdWUgPSBVSW50NjQoMCkKICAgIGJ5dGVjIDQgLy8gImNsYWltZWRfdG90YWwiCiAgICBpbnRjXzAgLy8gMAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjExMAogICAgLy8gc2VsZi5vd25lci52YWx1ZSA9IFR4bi5zZW5kZXIKICAgIGJ5dGVjIDUgLy8gIm93bmVyIgogICAgdHhuIFNlbmRlcgogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjExMQogICAgLy8gc2VsZi5iZW5lZmljaWFyeS52YWx1ZSA9IEFjY291bnQoKQogICAgYnl0ZWNfMSAvLyAiYmVuZWZpY2lhcnkiCiAgICBnbG9iYWwgWmVyb0FkZHJlc3MKICAgIGFwcF9nbG9iYWxfcHV0CiAgICAvLyBjb250cmFjdC5weTo5OQogICAgLy8gQGFiaW1ldGhvZChjcmVhdGU9InJlcXVpcmUiKQogICAgaW50Y18xIC8vIDEKICAgIHJldHVybgoKCi8vIGNvbnRyYWN0LlRpZGUuc2V0X2tlZXBlcltyb3V0aW5nXSgpIC0+IHZvaWQ6CnNldF9rZWVwZXI6CiAgICAvLyBjb250cmFjdC5weToxMTMKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgZHVwCiAgICBsZW4KICAgIGludGNfMiAvLyA4CiAgICA9PQogICAgYXNzZXJ0IC8vIGludmFsaWQgbnVtYmVyIG9mIGJ5dGVzIGZvciBhcmM0LnVpbnQ2NAogICAgYnRvaQogICAgLy8gY29udHJhY3QucHk6MTIzCiAgICAvLyBhc3NlcnQgVHhuLnNlbmRlciA9PSBHbG9iYWwuY3JlYXRvcl9hZGRyZXNzLCAiT25seSB0aGUgY3JlYXRvciBjYW4gc2V0IHRoZSBrZWVwZXIiCiAgICB0eG4gU2VuZGVyCiAgICBnbG9iYWwgQ3JlYXRvckFkZHJlc3MKICAgID09CiAgICBhc3NlcnQgLy8gT25seSB0aGUgY3JlYXRvciBjYW4gc2V0IHRoZSBrZWVwZXIKICAgIC8vIGNvbnRyYWN0LnB5OjEyNAogICAgLy8gYXNzZXJ0IHNlbGYua2VlcGVyX2FwcC52YWx1ZSA9PSAwLCAiS2VlcGVyIGFscmVhZHkgc2V0IgogICAgaW50Y18wIC8vIDAKICAgIGJ5dGVjXzMgLy8gImtlZXBlcl9hcHAiCiAgICBhcHBfZ2xvYmFsX2dldF9leAogICAgYXNzZXJ0IC8vIGNoZWNrIHNlbGYua2VlcGVyX2FwcCBleGlzdHMKICAgICEKICAgIGFzc2VydCAvLyBLZWVwZXIgYWxyZWFkeSBzZXQKICAgIC8vIGNvbnRyYWN0LnB5OjEyNQogICAgLy8gYXNzZXJ0IGtlZXBlci5pZCAhPSAwLCAiS2VlcGVyIGFwcCByZXF1aXJlZCIKICAgIGR1cAogICAgYXNzZXJ0IC8vIEtlZXBlciBhcHAgcmVxdWlyZWQKICAgIC8vIGNvbnRyYWN0LnB5OjEyNgogICAgLy8gc2VsZi5rZWVwZXJfYXBwLnZhbHVlID0ga2VlcGVyLmlkCiAgICBieXRlY18zIC8vICJrZWVwZXJfYXBwIgogICAgc3dhcAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjExMwogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBpbnRjXzEgLy8gMQogICAgcmV0dXJuCgoKLy8gY29udHJhY3QuVGlkZS5zZXRfYmVuZWZpY2lhcnlbcm91dGluZ10oKSAtPiB2b2lkOgpzZXRfYmVuZWZpY2lhcnk6CiAgICAvLyBjb250cmFjdC5weToxMjgKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgZHVwCiAgICBsZW4KICAgIHB1c2hpbnQgMzIKICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuc3RhdGljX2FycmF5PGFyYzQudWludDgsIDMyPgogICAgLy8gY29udHJhY3QucHk6MTM4CiAgICAvLyBhc3NlcnQgVHhuLnNlbmRlciA9PSBzZWxmLm93bmVyLnZhbHVlLCAiT25seSB0aGUgb3duZXIgY2FuIHNldCB0aGUgYmVuZWZpY2lhcnkiCiAgICB0eG4gU2VuZGVyCiAgICBpbnRjXzAgLy8gMAogICAgYnl0ZWMgNSAvLyAib3duZXIiCiAgICBhcHBfZ2xvYmFsX2dldF9leAogICAgYXNzZXJ0IC8vIGNoZWNrIHNlbGYub3duZXIgZXhpc3RzCiAgICA9PQogICAgYXNzZXJ0IC8vIE9ubHkgdGhlIG93bmVyIGNhbiBzZXQgdGhlIGJlbmVmaWNpYXJ5CiAgICAvLyBjb250cmFjdC5weToxMzkKICAgIC8vIGFzc2VydCBzZWxmLmJlbmVmaWNpYXJ5LnZhbHVlID09IEdsb2JhbC56ZXJvX2FkZHJlc3MsICJCZW5lZmljaWFyeSBhbHJlYWR5IHNldCIKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18xIC8vICJiZW5lZmljaWFyeSIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5iZW5lZmljaWFyeSBleGlzdHMKICAgIGdsb2JhbCBaZXJvQWRkcmVzcwogICAgPT0KICAgIGFzc2VydCAvLyBCZW5lZmljaWFyeSBhbHJlYWR5IHNldAogICAgLy8gY29udHJhY3QucHk6MTQwCiAgICAvLyBzZWxmLmJlbmVmaWNpYXJ5LnZhbHVlID0gYmVuZWZpY2lhcnkKICAgIGJ5dGVjXzEgLy8gImJlbmVmaWNpYXJ5IgogICAgc3dhcAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjEyOAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBpbnRjXzEgLy8gMQogICAgcmV0dXJuCgoKLy8gY29udHJhY3QuVGlkZS5zZXRfZHJpcFtyb3V0aW5nXSgpIC0+IHZvaWQ6CnNldF9kcmlwOgogICAgLy8gY29udHJhY3QucHk6MTQyCiAgICAvLyBAYWJJbWV0aG9kKCkKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDEKICAgIGR1cAogICAgbGVuCiAgICBpbnRjXzIgLy8gOAogICAgPT0KICAgIGFzc2VydCAvLyBpbnZhbGlkIG51bWJlciBvZiBieXRlcyBmb3IgYXJjNC51aW50NjQKICAgIGJ0b2kKICAgIC8vIGNvbnRyYWN0LnB5OjE1MQogICAgLy8gYXNzZXJ0IFR4bi5zZW5kZXIgPT0gc2VsZi5vd25lci52YWx1ZSwgIk9ubHkgdGhlIG93bmVyIGNhbiBzZXQgdGhlIGRyaXAiCiAgICB0eG4gU2VuZGVyCiAgICBpbnRjXzAgLy8gMAogICAgYnl0ZWMgNSAvLyAib3duZXIiCiAgICBhcHBfZ2xvYmFsX2dldF9leAogICAgYXNzZXJ0IC8vIGNoZWNrIHNlbGYub3duZXIgZXhpc3RzCiAgICA9PQogICAgYXNzZXJ0IC8vIE9ubHkgdGhlIG93bmVyIGNhbiBzZXQgdGhlIGRyaXAKICAgIC8vIGNvbnRyYWN0LnB5OjE1MgogICAgLy8gYXNzZXJ0IGRyaXAgPj0gTUlOX0RSSVAsICJEcmlwIGJlbG93IGZsb29yIgogICAgZHVwCiAgICBpbnRjXzMgLy8gMTAwMAogICAgPj0KICAgIGFzc2VydCAvLyBEcmlwIGJlbG93IGZsb29yCiAgICAvLyBjb250cmFjdC5weToxNTMKICAgIC8vIHNlbGYuZHJpcC52YWx1ZSA9IGRyaXAKICAgIGJ5dGVjXzIgLy8gImRyaXAiCiAgICBzd2FwCiAgICBhcHBfZ2xvYmFsX3B1dAogICAgLy8gY29udHJhY3QucHk6MTQyCiAgICAvLyBAYWJJbWV0aG9kKCkKICAgIGludGNfMSAvLyAxCiAgICByZXR1cm4KCgovLyBjb250cmFjdC5UaWRlLmZ1bmRbcm91dGluZ10oKSAtPiB2b2lkOgpmdW5kOgogICAgLy8gY29udHJhY3QucHk6MTU1CiAgICAvLyBAYWJJbWV0aG9kKCkKICAgIHR4biBHcm91cEluZGV4CiAgICBpbnRjXzEgLy8gMQogICAgLQogICAgZHVwCiAgICBndHhucyBUeXBlRW51bQogICAgaW50Y18xIC8vIHBheQogICAgPT0KICAgIGFzc2VydCAvLyB0cmFuc2FjdGlvbiB0eXBlIGlzIHBheQogICAgLy8gY29udHJhY3QucHk6MTY1CiAgICAvLyBhc3NlcnQgcGF5bWVudC5yZWNlaXZlciA9PSBHbG9iYWwuY3VycmVudF9hcHBsaWNhdGlvbl9hZGRyZXNzLCAiUGF5bWVudCBtdXN0IGdvIHRvIHRoZSBhcHAiCiAgICBkdXAKICAgIGd0eG5zIFJlY2VpdmVyCiAgICBnbG9iYWwgQ3VycmVudEFwcGxpY2F0aW9uQWRkcmVzcwogICAgPT0KICAgIGFzc2VydCAvLyBQYXltZW50IG11c3QgZ28gdG8gdGhlIGFwcAogICAgLy8gY29udHJhY3QucHk6MTY2CiAgICAvLyBhc3NlcnQgcGF5bWVudC5hbW91bnQgPiAwLCAiUGF5bWVudCBtdXN0IGJlIG5vbnplcm8iCiAgICBndHhucyBBbW91bnQKICAgIGFzc2VydCAvLyBQYXltZW50IG11c3QgYmUgbm9uemVybwogICAgLy8gY29udHJhY3QucHk6MTU1CiAgICAvLyBAYWJJbWV0aG9kKCkKICAgIGludGNfMSAvLyAxCiAgICByZXR1cm4KCgovLyBjb250cmFjdC5UaWRlLnRpY2tbcm91dGluZ10oKSAtPiB2b2lkOgp0aWNrOgogICAgLy8gY29udHJhY3QucHk6MTg3CiAgICAvLyBrZWVwZXIgPSBzZWxmLmtlZXBlcl9hcHAudmFsdWUKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18zIC8vICJrZWVwZXJfYXBwIgogICAgYXBwX2dsb2JhbF9nZXRfZXgKICAgIGFzc2VydCAvLyBjaGVjayBzZWxmLmtlZXBlcl9hcHAgZXhpc3RzCiAgICAvLyBjb250cmFjdC5weToxODgKICAgIC8vIGFzc2VydCBrZWVwZXIgIT0gMCwgIktlZXBlciBub3Qgc2V0IgogICAgZHVwCiAgICBhc3NlcnQgLy8gS2VlcGVyIG5vdCBzZXQKICAgIC8vIGNvbnRyYWN0LnB5OjE5MQogICAgLy8gVHhuLnNlbmRlciA9PSBBcHBsaWNhdGlvbihrZWVwZXIpLmFkZHJlc3MKICAgIHR4biBTZW5kZXIKICAgIHN3YXAKICAgIGFwcF9wYXJhbXNfZ2V0IEFwcEFkZHJlc3MKICAgIGFzc2VydCAvLyBhcHBsaWNhdGlvbiBleGlzdHMKICAgID09CiAgICAvLyBjb250cmFjdC5weToxODktMTkyCiAgICAvLyAjIElubmVyLWNhbGwgc2VuZGVyIGlzIHRoZSBrZWVwZXIgKmFwcCBhY2NvdW50Kiwgbm90IGl0b2Ioa2VlcGVyLmlkKS4KICAgIC8vIGFzc2VydCAoCiAgICAvLyAgICAgVHhuLnNlbmRlciA9PSBBcHBsaWNhdGlvbihrZWVwZXIpLmFkZHJlc3MKICAgIC8vICksICJPbmx5IHRoZSBrZWVwZXIgYXBwIG1heSB0aWNrIgogICAgYXNzZXJ0IC8vIE9ubHkgdGhlIGtlZXBlciBhcHAgbWF5IHRpY2sKICAgIC8vIGNvbnRyYWN0LnB5OjE5NC0xOTUKICAgIC8vICMgTm9ib2R5IHRvIHB1bGwgdGhlIHN0cmVhbSB5ZXQuIFJldHVybiwgZG8gbm90IGFzc2VydC4KICAgIC8vIGlmIHNlbGYuYmVuZWZpY2lhcnkudmFsdWUgPT0gR2xvYmFsLnplcm9fYWRkcmVzczoKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18xIC8vICJiZW5lZmljaWFyeSIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5iZW5lZmljaWFyeSBleGlzdHMKICAgIGdsb2JhbCBaZXJvQWRkcmVzcwogICAgPT0KICAgIGJ6IHRpY2tfYWZ0ZXJfaWZfZWxzZUAzCiAgICAvLyBjb250cmFjdC5weToxOTYKICAgIC8vIHJldHVybiBVSW50NjQoMCkKICAgIGludGNfMCAvLyAwCgp0aWNrX2FmdGVyX2lubGluZWRfY29udHJhY3QuVGlkZS50aWNrQDY6CiAgICAvLyBjb250cmFjdC5weToxNjgKICAgIC8vIEBhYmltZXRob2QoKQogICAgaXRvYgogICAgYnl0ZWMgNiAvLyAweDE1MWY3Yzc1CiAgICBzd2FwCiAgICBjb25jYXQKICAgIGxvZwogICAgaW50Y18xIC8vIDEKICAgIHJldHVybgoKdGlja19hZnRlcl9pZl9lbHNlQDM6CiAgICAvLyBjb250cmFjdC5weToxOTgtMjAwCiAgICAvLyAjIFVuZGVyZnVuZGVkIHBvb2w6IG5ldmVyIG1hdHVyZSBhIGRyaXAgdGhlIGFwcCBjYW5ub3QgcGF5LgogICAgLy8gIyAoVGhlIGFwcCBleGlzdHMsIHNvIGl0cyBiYWxhbmNlIGlzIGFsd2F5cyA+PSBBUFBfTUlOX0JBTEFOQ0UuKQogICAgLy8gZHJpcCA9IHNlbGYuZHJpcC52YWx1ZQogICAgaW50Y18wIC8vIDAKICAgIGJ5dGVjXzIgLy8gImRyaXAiCiAgICBhcHBfZ2xvYmFsX2dldF9leAogICAgYXNzZXJ0IC8vIGNoZWNrIHNlbGYuZHJpcCBleGlzdHMKICAgIC8vIGNvbnRyYWN0LnB5OjIwMQogICAgLy8gb3dlZCA9IGRyaXAgKiAoc2VsZi5tYXR1cmVkLnZhbHVlICsgMSkKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18wIC8vICJtYXR1cmVkIgogICAgYXBwX2dsb2JhbF9nZXRfZXgKICAgIGFzc2VydCAvLyBjaGVjayBzZWxmLm1hdHVyZWQgZXhpc3RzCiAgICBpbnRjXzEgLy8gMQogICAgKwogICAgKgogICAgLy8gY29udHJhY3QucHk6MjAyCiAgICAvLyBpZiBHbG9iYWwuY3VycmVudF9hcHBsaWNhdGlvbl9hZGRyZXNzLmJhbGFuY2UgLSBBUFBfTUlOX0JBTEFOQ0UgPCBvd2VkOgogICAgZ2xvYmFsIEN1cnJlbnRBcHBsaWNhdGlvbkFkZHJlc3MKICAgIGFjY3RfcGFyYW1zX2dldCBBY2N0QmFsYW5jZQogICAgYXNzZXJ0IC8vIGFjY291bnQgZnVuZGVkCiAgICBwdXNoaW50IDEwMDAwMAogICAgLQogICAgPgogICAgYnogdGlja19hZnRlcl9pZl9lbHNlQDUKICAgIC8vIGNvbnRyYWN0LnB5OjIwMwogICAgLy8gcmV0dXJuIFVJbnQ2NCgwKQogICAgaW50Y18wIC8vIDAKICAgIC8vIGNvbnRyYWN0LnB5OjE2OAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBiIHRpY2tfYWZ0ZXJfaW5saW5lZF9jb250cmFjdC5UaWRlLnRpY2tANgoKdGlja19hZnRlcl9pZl9lbHNlQDU6CiAgICAvLyBjb250cmFjdC5weToyMDUtMjA2CiAgICAvLyAjIE1hdHVyZSBvbmUgZHJpcC4KICAgIC8vIHNlbGYubWF0dXJlZC52YWx1ZSArPSAxCiAgICBpbnRjXzAgLy8gMAogICAgYnl0ZWNfMCAvLyAibWF0dXJlZCIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5tYXR1cmVkIGV4aXN0cwogICAgaW50Y18xIC8vIDEKICAgICsKICAgIGJ5dGVjXzAgLy8gIm1hdHVyZWQiCiAgICBkaWcgMQogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjE2OAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBiIHRpY2tfYWZ0ZXJfaW5saW5lZF9jb250cmFjdC5UaWRlLnRpY2tANgoKCi8vIGNvbnRyYWN0LlRpZGUuY2xhaW1bcm91dGluZ10oKSAtPiB2b2lkOgpjbGFpbToKICAgIC8vIGNvbnRyYWN0LnB5OjIyNQogICAgLy8gYXNzZXJ0IFR4bi5zZW5kZXIgPT0gc2VsZi5iZW5lZmljaWFyeS52YWx1ZSwgIk9ubHkgdGhlIGJlbmVmaWNpYXJ5IGNhbiBjbGFpbSIKICAgIHR4biBTZW5kZXIKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18xIC8vICJiZW5lZmljaWFyeSIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5iZW5lZmljaWFyeSBleGlzdHMKICAgID09CiAgICBhc3NlcnQgLy8gT25seSB0aGUgYmVuZWZpY2lhcnkgY2FuIGNsYWltCiAgICAvLyBjb250cmFjdC5weToyMjYKICAgIC8vIG1hdHVyZWQgPSBzZWxmLm1hdHVyZWQudmFsdWUKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18wIC8vICJtYXR1cmVkIgogICAgYXBwX2dsb2JhbF9nZXRfZXgKICAgIHN3YXAKICAgIGR1cAogICAgdW5jb3ZlciAyCiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5tYXR1cmVkIGV4aXN0cwogICAgLy8gY29udHJhY3QucHk6MjI3CiAgICAvLyBpZiBtYXR1cmVkID09IDA6CiAgICBieiBjbGFpbV9hZnRlcl9pbmxpbmVkX2NvbnRyYWN0LlRpZGUuY2xhaW1ANQogICAgLy8gY29udHJhY3QucHk6MjI5CiAgICAvLyBhbW91bnQgPSBtYXR1cmVkICogc2VsZi5kcmlwLnZhbHVlCiAgICBpbnRjXzAgLy8gMAogICAgYnl0ZWNfMiAvLyAiZHJpcCIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5kcmlwIGV4aXN0cwogICAgZGlnIDEKICAgICoKICAgIC8vIGNvbnRyYWN0LnB5OjIzMC0yMzQKICAgIC8vIGl0eG4uUGF5bWVudCgKICAgIC8vICAgICByZWNlaXZlcj1zZWxmLmJlbmVmaWNpYXJ5LnZhbHVlLAogICAgLy8gICAgIGFtb3VudD1hbW91bnQsCiAgICAvLyAgICAgZmVlPTEwMDAsCiAgICAvLyApLnN1Ym1pdCgpCiAgICBpdHhuX2JlZ2luCiAgICAvLyBjb250cmFjdC5weToyMzEKICAgIC8vIHJlY2VpdmVyPXNlbGYuYmVuZWZpY2lhcnkudmFsdWUsCiAgICBpbnRjXzAgLy8gMAogICAgYnl0ZWNfMSAvLyAiYmVuZWZpY2lhcnkiCiAgICBhcHBfZ2xvYmFsX2dldF9leAogICAgYXNzZXJ0IC8vIGNoZWNrIHNlbGYuYmVuZWZpY2lhcnkgZXhpc3RzCiAgICBkaWcgMQogICAgaXR4bl9maWVsZCBBbW91bnQKICAgIGl0eG5fZmllbGQgUmVjZWl2ZXIKICAgIC8vIGNvbnRyYWN0LnB5OjIzMAogICAgLy8gaXR4bi5QYXltZW50KAogICAgaW50Y18xIC8vIHBheQogICAgaXR4bl9maWVsZCBUeXBlRW51bQogICAgLy8gY29udHJhY3QucHk6MjMzCiAgICAvLyBmZWU9MTAwMCwKICAgIGludGNfMyAvLyAxMDAwCiAgICBpdHhuX2ZpZWxkIEZlZQogICAgLy8gY29udHJhY3QucHk6MjMwLTIzNAogICAgLy8gaXR4bi5QYXltZW50KAogICAgLy8gICAgIHJlY2VpdmVyPXNlbGYuYmVuZWZpY2lhcnkudmFsdWUsCiAgICAvLyAgICAgYW1vdW50PWFtb3VudCwKICAgIC8vICAgICBmZWU9MTAwMCwKICAgIC8vICkuc3VibWl0KCkKICAgIGl0eG5fc3VibWl0CiAgICAvLyBjb250cmFjdC5weToyMzUKICAgIC8vIHNlbGYuY2xhaW1lZF90b3RhbC52YWx1ZSArPSBhbW91bnQKICAgIGludGNfMCAvLyAwCiAgICBieXRlYyA0IC8vICJjbGFpbWVkX3RvdGFsIgogICAgYXBwX2dsb2JhbF9nZXRfZXgKICAgIGFzc2VydCAvLyBjaGVjayBzZWxmLmNsYWltZWRfdG90YWwgZXhpc3RzCiAgICArCiAgICBieXRlYyA0IC8vICJjbGFpbWVkX3RvdGFsIgogICAgc3dhcAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGNvbnRyYWN0LnB5OjIzNgogICAgLy8gc2VsZi5tYXR1cmVkLnZhbHVlID0gVUludDY0KDApCiAgICBieXRlY18wIC8vICJtYXR1cmVkIgogICAgaW50Y18wIC8vIDAKICAgIGFwcF9nbG9iYWxfcHV0CgpjbGFpbV9hZnRlcl9pbmxpbmVkX2NvbnRyYWN0LlRpZGUuY2xhaW1ANToKICAgIC8vIGNvbnRyYWN0LnB5OjIwOQogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBpbnRjXzEgLy8gMQogICAgcmV0dXJuCgoKLy8gY29udHJhY3QuVGlkZS5jbGFpbWFibGVbcm91dGluZ10oKSAtPiB2b2lkOgpjbGFpbWFibGU6CiAgICAvLyBjb250cmFjdC5weToyNDEKICAgIC8vIHJldHVybiBzZWxmLm1hdHVyZWQudmFsdWUgKiBzZWxmLmRyaXAudmFsdWUKICAgIGludGNfMCAvLyAwCiAgICBieXRlY18wIC8vICJtYXR1cmVkIgogICAgYXBwX2dsb2JhbF9nZXRfZXgKICAgIGFzc2VydCAvLyBjaGVjayBzZWxmLm1hdHVyZWQgZXhpc3RzCiAgICBpbnRjXzAgLy8gMAogICAgYnl0ZWNfMiAvLyAiZHJpcCIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5kcmlwIGV4aXN0cwogICAgKgogICAgLy8gY29udHJhY3QucHk6MjM4CiAgICAvLyBAYWJJbWV0aG9kKHJlYWRvbmx5PVRydWUpCiAgICBpdG9iCiAgICBieXRlYyA2IC8vIDB4MTUxZjdjNzUKICAgIHN3YXAKICAgIGNvbmNhdAogICAgbG9nCiAgICBpbnRjXzEgLy8gMQogICAgcmV0dXJuCg==",
+        "clear": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuY2xlYXJfc3RhdGVfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIHB1c2hpbnQgMQogICAgcmV0dXJuCg=="
+    },
+    "byteCode": {
+        "approval": "CyAEAAEI6AcmBwdtYXR1cmVkC2JlbmVmaWNpYXJ5BGRyaXAKa2VlcGVyX2FwcA1jbGFpbWVkX3RvdGFsBW93bmVyBBUffHUxGEAAFisiZyoiZygiZycEImcnBTIDZykyA2cxGRREMRhBADmCBwTEwdj3BEIVjxsEUs+sYARRUxt1BE1NXwsE8Vd3JgQDz7WRNhoAjgcAJwBDAGIAfQCTAN4BGQCABExcYbo2GgCOAQABACsiZyoiZygiZycEImcnBTEAZykyA2cjQzYaAUkVJBJEFzEAMgkSRCIrZUQURElEK0xnI0M2GgFJFYEgEkQxACInBWVEEkQiKWVEMgMSRClMZyNDNhoBSRUkEkQXMQAiJwVlRBJESSUPRCpMZyNDMRYjCUk4ECMSREk4BzIKEkQ4CEQjQyIrZURJRDEATHIIRBJEIillRDIDEkEACSIWJwZMULAjQyIqZUQiKGVEIwgLMgpzAESBoI0GCQ1BAAQiQv/bIihlRCMIKEsBZ0L/zjEAIillRBJEIihlTElPAkRBACYiKmVESwELsSIpZURLAbIIsgcjshAlsgGzIicEZUQIJwRMZygiZyNDIihlRCIqZUQLFicGTFCwI0M=",
+        "clear": "C4EBQw=="
+    },
+    "compilerInfo": {
+        "compiler": "puya",
+        "compilerVersion": {
+            "major": 5,
+            "minor": 10,
+            "patch": 1
+        }
+    },
+    "events": [],
+    "templateVariables": {}
+}
