@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TIDE — pull payment stream board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600&family=Bebas+Neue&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="crt" id="crt">
+    <header>
+      <h1>Tide</h1>
+      <div class="meta" id="keeper-meta">TestNet · Arcron keeper</div>
+    </header>
+
+    <section class="status-row">
+      <div class="label">Status</div>
+      <div class="flaps big" id="status" aria-label="board status"></div>
+      <div class="meta" id="subhead">seeking</div>
+    </section>
+
+    <section class="board" id="board">
+      <div class="cell">
+        <div class="label">Claimable</div>
+        <div class="flaps" id="stat-claimable" aria-label="uALGO the beneficiary can pull now"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Drip per tick</div>
+        <div class="flaps" id="stat-drip" aria-label="uALGO matured per keeper tick"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Ticks matured</div>
+        <div class="flaps" id="stat-matured" aria-label="unclaimed drips"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Claimed total</div>
+        <div class="flaps" id="stat-claimed" aria-label="lifetime uALGO paid out"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Beneficiary</div>
+        <div class="flaps" id="stat-beneficiary" aria-label="beneficiary address, short"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Pool balance</div>
+        <div class="flaps" id="stat-pool" aria-label="app account balance"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Chain round</div>
+        <div class="flaps" id="stat-round" aria-label="chain last round"></div>
+      </div>
+      <div class="cell">
+        <div class="label">Keeper</div>
+        <div class="flaps" id="stat-keeper" aria-label="keeper app id"></div>
+      </div>
+    </section>
+
+    <p class="notes" id="notes">
+      The keeper matures the tide; the beneficiary pulls. Each keeper
+      <code>tick()</code> matures one <code>drip</code> into the claimable
+      pool; <code>claim()</code> pays <code>matured × drip</code> out of the
+      app with an inner payment (outer call must pool the fee: flat fee
+      ≥ 2000 µALGO). Once deployed, state is read from the app's global
+      state on the TestNet indexer; the chain is the source of truth.
+      Contract:
+      <a href="https://github.com/corvid-agent/tide/blob/main/smart_contracts/tide/contract.py">smart_contracts/tide/contract.py</a>.
+    </p>
+
+    <footer class="foot">Unaudited. TestNet only. Not deployed. Read-only, no wallet.</footer>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
